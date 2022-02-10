@@ -276,9 +276,8 @@ def pressed_key(keys):
 
 
 def main_menu():
-    running = True
     click = False
-    while running:
+    while True:
         clock.tick(30)
         pygame.time.delay(40)
 
@@ -305,11 +304,11 @@ def main_menu():
         click = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    pygame.quit()
                     sys.exit()
                 if event.key == pygame.K_RETURN:
                     game()
@@ -321,8 +320,7 @@ def main_menu():
 
 
 def option():
-    running = True
-    while running:
+    while True:
         clock.tick(30)
         pygame.time.delay(40)
 
@@ -332,11 +330,11 @@ def option():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    main_menu()
 
         pygame.display.update()
 
@@ -344,8 +342,7 @@ def option():
 def game():
     global animCount
 
-    running = True
-    while running:
+    while True:
         clock.tick(60)
         pygame.time.delay(60)
 
@@ -354,11 +351,11 @@ def game():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    main_menu()
 
         for bul in bullets:
             if bul.vel != 0:
