@@ -50,10 +50,15 @@ class Player:
                 pygame.image.load("./sprites/biker/run left/run5.png"),
                 pygame.image.load("./sprites/biker/run left/run6.png")]
 
-    playerStand = [pygame.image.load("./sprites/biker/idle/idle1.png"),
-                   pygame.image.load("./sprites/biker/idle/idle2.png"),
-                   pygame.image.load("./sprites/biker/idle/idle3.png"),
-                   pygame.image.load("./sprites/biker/idle/idle4.png")]
+    playerStandRight = [pygame.image.load("./sprites/biker/idleRight/idle1.png"),
+                        pygame.image.load("./sprites/biker/idleRight/idle2.png"),
+                        pygame.image.load("./sprites/biker/idleRight/idle3.png"),
+                        pygame.image.load("./sprites/biker/idleRight/idle4.png")]
+
+    playerStandLeft = [pygame.image.load("./sprites/biker/idleLeft/idle1.png"),
+                       pygame.image.load("./sprites/biker/idleLeft/idle2.png"),
+                       pygame.image.load("./sprites/biker/idleLeft/idle3.png"),
+                       pygame.image.load("./sprites/biker/idleLeft/idle4.png")]
 
     playerJumpR = [pygame.image.load("./sprites/biker/jumpRight/jump1.png"),
                    pygame.image.load("./sprites/biker/jumpRight/jump2.png"),
@@ -97,7 +102,10 @@ class Player:
             win.blit(self.walkLeft[animCount // 5], (self.get_x(), self.get_y()))
             animCount += 1
         else:
-            win.blit(self.playerStand[animCount // 8], (self.get_x(), self.get_y()))
+            if self.lastMove == 'right':
+                win.blit(self.playerStandRight[animCount // 8], (self.get_x(), self.get_y()))
+            else:
+                win.blit(self.playerStandLeft[animCount // 8], (self.get_x(), self.get_y()))
             animCount += 1
         print(animCount)
 
