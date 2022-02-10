@@ -28,7 +28,6 @@ animCount = 0
 bgCount = 0
 player_y_momentum = 0
 air_time = 0
-CHUNK_SIZE = 8
 font = pygame.font.SysFont("", 50)
 tile_rect = []
 bullets = []
@@ -37,13 +36,6 @@ scroll = [0, 0]
 
 
 class Player:
-    isJump = False
-    jumpCount = 15
-
-    left = False
-    right = False
-    lastMove = "right"
-
     walkRight = [pygame.image.load("./sprites/biker/run right/run1.png"),
                  pygame.image.load("./sprites/biker/run right/run2.png"),
                  pygame.image.load("./sprites/biker/run right/run3.png"),
@@ -76,12 +68,44 @@ class Player:
     def __init__(self, x, y, width, height, speed):
         self.speed = speed
         self.player_rect = pygame.Rect(x, y, width, height)
+        self.isJump = False
+        self.jumpCount = 15
+        self.left = False
+        self.right = False
+        self.lastMove = "right"
 
     def get_x(self):
         return self.player_rect.x - self.player_rect.width / 1.5 - scroll[0]
 
     def get_y(self):
         return self.player_rect.y - self.player_rect.height / 3 - scroll[1]
+
+    def draw_player(self, win):
+        global animCount
+        if animCount >= 30:
+            animCount = 0
+        if self.isJump:
+            if self.lastMove == "right":
+                win.blit(self.playerJumpR[animCount // 5], (self.get_x(), self.get_y()))
+            else:
+                win.blit(self.playerJumpL[animCount // 5], (self.get_x(), self.get_y()))
+            animCount += 1
+        elif self.right:
+            win.blit(self.walkRight[animCount // 5], (self.get_x(), self.get_y()))
+            animCount += 1
+        elif self.left:
+            win.blit(self.walkLeft[animCount // 5], (self.get_x(), self.get_y()))
+            animCount += 1
+        else:
+            win.blit(self.playerStand[animCount // 8], (self.get_x(), self.get_y()))
+            animCount += 1
+        print(animCount)
+
+    def draw_collision_rect(self, win):
+        pygame.draw.rect(win, "red",
+                         pygame.Rect(self.get_x() + self.player_rect.width / 1.5,
+                                     self.get_y() + self.player_rect.height / 3,
+                                     self.player_rect.width, self.player_rect.height))
 
 
 class bullet:
@@ -92,12 +116,22 @@ class bullet:
         self.color = color
         self.facing = facing
         self.vel = 8 * facing
+        self.bul_rect = pygame.Rect(x - radius, y - radius, 2 * radius, 2 * radius)
 
     def draw(self, win):
-        pygame.draw.circle(win, self.color, (self.x, self.y), self.radius)
+        pygame.draw.circle(win, self.color, (self.get_x() + self.radius, self.get_y() + self.radius), self.radius)
+
+    def get_x(self):
+        return self.bul_rect.x - scroll[0]
+
+    def get_y(self):
+        return self.bul_rect.y
+
+    def draw_collision_rect(self, win):
+        pygame.draw.rect(win, "blue", pygame.Rect(self.get_x(), self.get_y(), self.radius * 2, self.radius * 2))
 
 
-man = Player(display_width / 2, 100, 45, 60, 15)
+man = Player(display_width / 2 + 45, 100, 45, 60, 15)
 
 
 def load_map(path):
@@ -109,22 +143,6 @@ def load_map(path):
     for row in data:
         map_game.append(list(row))
     return map_game
-
-
-# def generate_chunk(x, y):
-#     chunk_data = []
-#     for y_pos in range(CHUNK_SIZE):
-#         for x_pos in range(CHUNK_SIZE):
-#             target_x = x * CHUNK_SIZE + x_pos
-#             target_y = y * CHUNK_SIZE + y_pos
-#             tile_type = 0
-#             if target_y > 11:
-#                 tile_type = 2
-#             elif target_y == 10:
-#                 tile_type = 1
-#             if tile_type != 0:
-#                 chunk_data.append([[target_x, target_y], tile_type])
-#     return chunk_data
 
 
 game_map = load_map('map')
@@ -184,61 +202,20 @@ def draw_tile():
         y += 1
 
 
-# def draw_tile():
-#     for y in range(3):
-#         for x in range(3):
-#             target_x = x - 1 + int(scroll[0] / (CHUNK_SIZE * 43))
-#             target_y = y - 1 + int(scroll[1] / (CHUNK_SIZE * 43))
-#             target_chunk = str(x) + ';' + str(y)
-#             if target_chunk not in game_map:
-#                 game_map[target_chunk] = generate_chunk(target_x, target_y)
-#             for tile in game_map[target_chunk]:
-#                 if tile[1] == '1':
-#                     screen.blit(plat[0], (tile[0][0] * TILE_SIZE - scroll[0],
-#                                           tile[0][1] * TILE_SIZE - TILE_SIZE - scroll[1]))
-#                 elif tile[1] == '2':
-#                     screen.blit(plat[3], (tile[0][0] * TILE_SIZE - scroll[0], tile[0][1] * TILE_SIZE - scroll[1]))
-#                 elif tile[1] == '3':
-#                     screen.blit(plat[1], (tile[0][0] * TILE_SIZE - scroll[0], tile[0][1] * TILE_SIZE - scroll[1]))
-#                 elif tile[1] == '4':
-#                     screen.blit(plat[2], (tile[0][0] * TILE_SIZE - scroll[0], tile[0][1] * TILE_SIZE - scroll[1]))
-#                 if tile[1] != '0':
-#                     tile_rect.append(pygame.Rect(
-#                         tile[0][0] * TILE_SIZE, tile[0][1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-
-
 def draw_window():
-    global animCount, bgCount
+    global bgCount
 
-    screen.blit(bg1, (scroll[0] / 10, scroll[1] / 10))
+    screen.blit(bg1, (- scroll[0] / 10 - man.player_rect.width, scroll[1] / 10))
 
     draw_tile()
-    print(game_map)
 
-    if animCount >= 30:
-        animCount = 0
-
-    if man.isJump:
-        if man.lastMove == "right":
-            screen.blit(man.playerJumpR[animCount // 5], (man.get_x(), man.get_y()))
-        else:
-            screen.blit(man.playerJumpL[animCount // 5], (man.get_x(), man.get_y()))
-        animCount += 1
-    elif man.right:
-        screen.blit(man.walkRight[animCount // 5], (man.get_x(), man.get_y()))
-        animCount += 1
-    elif man.left:
-        screen.blit(man.walkLeft[animCount // 5], (man.get_x(), man.get_y()))
-        animCount += 1
-    else:
-        screen.blit(man.playerStand[animCount // 8], (man.get_x(), man.get_y()))
-        animCount += 1
-    print(animCount)
+    man.draw_player(screen)
 
     for bul in bullets:
         bul.draw(screen)
+        # bul.draw_collision_rect(screen)
 
-    # pygame.draw.rect(screen, "red", man.player_rect)
+    # man.draw_collision_rect(screen)
     pygame.display.update()
 
 
@@ -259,7 +236,7 @@ def pressed_key(keys):
         man.right = True
         man.left = False
     elif keys[pygame.K_a]:
-        if man.player_rect.x > - man.player_rect.width / 2:
+        if man.player_rect.x > man.player_rect.width:
             player_movement[0] -= man.speed
             man.lastMove = "left"
             man.right = False
@@ -268,31 +245,13 @@ def pressed_key(keys):
         man.left = False
         man.right = False
 
-    if keys[pygame.K_f]:
-        if man.lastMove == 'right':
-            face = 1
-        else:
-            face = -1
-
+    if keys[pygame.K_RIGHT] or keys[pygame.K_LEFT] or keys[pygame.K_UP]:
+        face = 1 if keys[pygame.K_RIGHT] else -1 if keys[pygame.K_LEFT] else 0
         if len(bullets) < 100:
-            bullets.append(bullet(round(man.player_rect.x + man.player_rect.width // 2), round(man.player_rect.y +
-                                                                                               man.player_rect.height // 2),
+            bullets.append(bullet(round(man.player_rect.x + man.player_rect.width / 2),
+                                  round(man.player_rect.y + man.player_rect.height / 2),
                                   5, (255, 0, 0), face))
 
-    # if not man.isJump:
-    #     if keys[pygame.K_SPACE]:
-    #         man.isJump = True
-    #         animCount = 0
-    # else:
-    # if man.jumpCount >= -15:
-    #     if man.jumpCount < 0:
-    #         man.player_rect.y += (man.jumpCount ** 2) / 3
-    #     else:
-    #         man.player_rect.y -= (man.jumpCount ** 2) / 3
-    #     man.jumpCount -= 2
-    # else:
-    #     man.isJump = False
-    #     man.jumpCount = 15
     if keys[pygame.K_SPACE]:
         if air_time < 1:
             animCount = 0
@@ -305,6 +264,7 @@ def pressed_key(keys):
         player_y_momentum = 50
 
     man.player_rect, collision = move(man.player_rect, player_movement, tile_rect)
+
     if collision['top']:
         player_y_momentum = 10
     if collision['bottom']:
@@ -389,8 +349,8 @@ def game():
         clock.tick(60)
         pygame.time.delay(60)
 
-        scroll[0] += int(man.player_rect.x - scroll[0] - display_width / 2 - man.player_rect.width / 2) / 5
-        # scroll[1] += int(man.player_rect.y - scroll[1] - display_height / 2 - man.player_rect.height / 2) / 5
+        if man.player_rect.x >= (display_width / 2 + man.player_rect.width / 2):
+            scroll[0] += int(man.player_rect.x - scroll[0] - display_width / 2 + man.player_rect.width / 2)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -401,10 +361,20 @@ def game():
                     running = False
 
         for bul in bullets:
-            if 1024 > bul.x > 0:
-                bul.x += bul.vel
+            if bul.vel != 0:
+                if 1024 > bul.get_x() > 0:
+                    bul.bul_rect, collision = move(bul.bul_rect, [bul.vel, 0], tile_rect)
+                    if collision['top'] or collision['bottom'] or collision['right'] or collision['left']:
+                        bullets.pop(bullets.index(bul))
+                else:
+                    bullets.pop(bullets.index(bul))
             else:
-                bullets.pop(bullets.index(bul))
+                if display_height > bul.bul_rect.y > 0:
+                    bul.bul_rect, collision = move(bul.bul_rect, [0, -10], tile_rect)
+                    if collision['top'] or collision['bottom'] or collision['right'] or collision['left']:
+                        bullets.pop(bullets.index(bul))
+                else:
+                    bullets.pop(bullets.index(bul))
 
         keys = pygame.key.get_pressed()
 
