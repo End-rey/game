@@ -11,7 +11,7 @@ TILE_SIZE = 43
 screen = pygame.display.set_mode((display_width, display_height), 0, 32)
 pygame.display.set_caption("Game")
 
-bg1 = pygame.image.load("./sprites/bg3.png")
+bg1 = pygame.image.load("./sprites/bg3.png").convert()
 
 clock = pygame.time.Clock()
 
@@ -26,13 +26,11 @@ plat[2].set_colorkey((255, 255, 255))
 
 animCount = 0
 bgCount = 0
-player_y_momentum = 0
-air_time = 0
-font = pygame.font.SysFont("", 50)
 tile_rect = []
 bullets = []
-
 scroll = [0, 0]
+main_font = pygame.font.SysFont("comicsansms", 40)
+health_font = pygame.font.SysFont("comicsansms", 25)
 
 
 class Player:
@@ -79,6 +77,8 @@ class Player:
         self.right = False
         self.lastMove = "right"
         self.hp = 300
+        self.player_y_momentum = 0
+        self.air_time = 0
 
     def get_x(self):
         return self.player_rect.x - self.player_rect.width / 1.5 - scroll[0]
@@ -116,10 +116,10 @@ class Player:
                          pygame.Rect(self.get_x() + self.player_rect.width / 1.5,
                                      self.get_y() + self.player_rect.height / 3,
                                      self.player_rect.width, self.player_rect.height), 2)
-        draw_text(str(int(self.hp / 3)) + "/100", font, "white", win, 31, 31)
+        draw_text(str(int(self.hp / 3)) + "/100", health_font, "white", win, 80, 42)
 
     def health(self, win):
-        pygame.draw.rect(win, "#8b4513", pygame.Rect(29, 29, 302, 32), 2)
+        pygame.draw.rect(win, "red", pygame.Rect(29, 29, 302, 32))
         pygame.draw.rect(win, "green", pygame.Rect(30, 30, self.hp, 30))
 
 
@@ -147,10 +147,19 @@ class bullet:
 
 
 class Enemy:
+    enemy_stand = pygame.image.load('./sprites/enemy/standing.png')
+    enemy_walkR = []
+    enemy_walkL = []
+    for i in range(11):
+        enemy_walkR.append(pygame.image.load(f'./sprites/enemy/walkRight/R{i + 1}E.png'))
+        enemy_walkL.append(pygame.image.load(f'./sprites/enemy/walkLeft/L{i + 1}E.png'))
+
     def __init__(self, x, y, width, height):
         self.enemy_rect = pygame.Rect(x, y, width, height)
         self.move_count = 100
         self.gravity = 10
+        self.right = False
+        self.left = False
 
     def get_x(self):
         return self.enemy_rect.x - scroll[0]
@@ -167,6 +176,8 @@ class Enemy:
         if collision['bottom']:
             if self.move_count > 1:
                 self.enemy_rect, collision = move(self.enemy_rect, [5, 10], tile_rect)
+                self.right = True
+                self.left = False
                 self.move_count -= 1
             elif self.move_count == 1:
                 self.move_count = -100
@@ -174,12 +185,39 @@ class Enemy:
                 self.move_count = 100
             elif self.move_count < -1:
                 self.enemy_rect, collision = move(self.enemy_rect, [-5, 10], tile_rect)
+                self.right = False
+                self.left = True
                 self.move_count += 1
 
+    def draw_enemy(self, win):
+        global animCount
 
-en1 = Enemy(500, 100, 50, 40)
+        if self.right:
+            win.blit(self.enemy_walkR[animCount // 3],
+                     (self.get_x() - self.enemy_rect.width / 2, self.get_y() + 5))
+        elif self.left:
+            win.blit(self.enemy_walkL[animCount // 3],
+                     (self.get_x() - self.enemy_rect.width / 2, self.get_y() + 5))
+        else:
+            win.blit(self.enemy_stand,
+                     (self.get_x() - self.enemy_rect.width / 2, self.get_y() + 5))
+
+
+en1 = Enemy(500, 100, 32, 64)
 enemy_rect1 = en1.enemy_rect
 man = Player(display_width / 2 + 45, 100, 45, 60, 15)
+
+
+def initialisation():
+    global animCount, bgCount, tile_rect, bullets, scroll, man, en1, enemy_rect1
+    animCount = 0
+    bgCount = 0
+    tile_rect = []
+    bullets = []
+    scroll = [0, 0]
+    en1 = Enemy(500, 100, 32, 64)
+    enemy_rect1 = en1.enemy_rect
+    man = Player(display_width / 2 + 45, 100, 45, 60, 15)
 
 
 def load_map(path):
@@ -258,25 +296,26 @@ def draw_window():
     draw_tile()
 
     man.draw_player(screen)
-    en1.draw_enemy_rect(screen)
+    # en1.draw_enemy_rect(screen)
+    en1.draw_enemy(screen)
 
     for bul in bullets:
         bul.draw(screen)
-        bul.draw_collision_rect(screen)
+        # bul.draw_collision_rect(screen)
 
-    man.draw_collision_rect(screen)
+    # man.draw_collision_rect(screen)
     pygame.display.update()
 
 
 def draw_text(text, font_rect, color, surface, x, y):
     text_obj = font_rect.render(text, 1, color)
     text_rect = text_obj.get_rect()
-    text_rect.topleft = (x, y)
+    text_rect.center = (x, y)
     surface.blit(text_obj, text_rect)
 
 
 def pressed_key(keys):
-    global animCount, player_y_momentum, air_time
+    global animCount
 
     player_movement = [0, 0]
     if keys[pygame.K_d]:
@@ -302,26 +341,26 @@ def pressed_key(keys):
                                   5, (255, 0, 0), face))
 
     if keys[pygame.K_SPACE]:
-        if air_time < 1:
+        if man.air_time < 1:
             animCount = 0
             man.isJump = True
-            player_y_momentum = -60
+            man.player_y_momentum = -60
 
-    player_movement[1] += player_y_momentum
-    player_y_momentum += 10
-    if player_y_momentum > 50:
-        player_y_momentum = 50
+    player_movement[1] += man.player_y_momentum
+    man.player_y_momentum += 10
+    if man.player_y_momentum > 50:
+        man.player_y_momentum = 50
 
     man.player_rect, collision = move(man.player_rect, player_movement, tile_rect)
 
     if collision['top']:
-        player_y_momentum = 10
+        man.player_y_momentum = 10
     if collision['bottom']:
-        player_y_momentum = 0
-        air_time = 0
+        man.player_y_momentum = 0
+        man.air_time = 0
         man.isJump = False
     else:
-        air_time += 1
+        man.air_time += 1
 
     if man.player_rect.colliderect(enemy_rect1):
         man.hp -= 10
@@ -331,19 +370,89 @@ def pressed_key(keys):
 
 
 def death():
+    click = False
+    display = pygame.Surface((display_width, display_height))
+    display.fill("black")
+    display.set_alpha(150)
+    screen.blit(display, (0, 0))
     while True:
         clock.tick(30)
         pygame.time.delay(40)
-        draw_text('YOU DIED', font, "red", screen, 300, 250)
+        draw_text('YOU DIED', main_font, "red", screen, display_width / 2, display_height / 2)
+
+        mx, my = pygame.mouse.get_pos()
+
+        button1 = pygame.Rect(display_width // 2 - 100, 100, 200, 50)
+        text = main_font.render("Main Menu", True, "red", "blue")
+        screen.blit(text, button1)
+
+        if button1.collidepoint((mx, my)):
+            text = main_font.render("Main Menu", True, "blue", "red")
+            screen.blit(text, button1)
+            if click:
+                main_menu()
+
+        click = False
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
+                    main_menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    click = True
+        pygame.display.update()
 
+
+def pause():
+    click = False
+    display = pygame.Surface((display_width, display_height))
+    display.fill("black")
+    display.set_alpha(150)
+    screen.blit(display, (0, 0))
+    while True:
+        clock.tick(30)
+        pygame.time.delay(40)
+
+        draw_text("PAUSE", main_font, "white", screen, display_width / 2, 30)
+
+        mx, my = pygame.mouse.get_pos()
+
+        button1 = pygame.Rect(display_width // 2 - 100, 100, 200, 50)
+        button2 = pygame.Rect(display_width / 2 - 100, 200, 200, 50)
+        text_but1 = main_font.render("Main Menu", True, "red", "blue")
+        text_but2 = main_font.render("Back", True, "red", "blue")
+        screen.blit(text_but1, button1)
+        screen.blit(text_but2, button2)
+
+        if button1.collidepoint((mx, my)):
+            text = main_font.render("Main Menu", True, "blue", "red")
+            screen.blit(text, button1)
+            if click:
+                main_menu()
+        if button2.collidepoint((mx, my)):
+            text = main_font.render("Back", True, "blue", "red")
+            screen.blit(text, button2)
+            if click:
+                game()
+
+        click = False
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    game()
+                if event.key == pygame.K_RETURN:
+                    main_menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    click = True
         pygame.display.update()
 
 
@@ -354,8 +463,11 @@ def main_menu():
         pygame.time.delay(40)
 
         screen.fill((0, 0, 0))
-        draw_text('main menu', font, (255, 255, 255),
-                  screen, display_width // 2 - 95, 30)
+
+        initialisation()
+
+        draw_text('main menu', main_font, (255, 255, 255),
+                  screen, display_width // 2, 30)
 
         mx, my = pygame.mouse.get_pos()
 
@@ -397,8 +509,8 @@ def option():
         pygame.time.delay(40)
 
         screen.fill((0, 0, 0))
-        draw_text('options', font, (255, 255, 255),
-                  screen, display_width // 2 - 100, 30)
+        draw_text('options', main_font, (255, 255, 255),
+                  screen, display_width // 2, 30)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -430,7 +542,7 @@ def game():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    main_menu()
+                    pause()
 
         for bul in bullets:
             if bul.vel != 0:
