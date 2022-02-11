@@ -8,7 +8,7 @@ display_width = 1548 // 2
 display_height = 516
 TILE_SIZE = 43
 
-screen = pygame.display.set_mode((display_width, display_height), 0, 32)
+screen = pygame.display.set_mode((display_width, display_height), pygame.RESIZABLE)
 pygame.display.set_caption("Game")
 
 bg1 = pygame.image.load("./sprites/bg3.png").convert()
@@ -27,7 +27,7 @@ plat[2].set_colorkey((255, 255, 255))
 animCount = 0
 bgCount = 0
 tile_rect = []
-
+fullscreen = False
 scroll = [0, 0]
 main_font = pygame.font.SysFont("comicsansms", 40)
 health_font = pygame.font.SysFont("comicsansms", 25)
@@ -347,8 +347,9 @@ def draw_tile():
 
 def draw_window():
     global bgCount
-
-    screen.blit(bg1, (- scroll[0] / 10 - man.player_rect.width, -scroll[1] / 10))
+    bg = bg1.copy()
+    bg = pygame.transform.scale(bg, (display_width * 2, display_height))
+    screen.blit(bg, (- scroll[0] / 10 - man.player_rect.width, -scroll[1] / 10))
 
     draw_tile()
 
@@ -422,6 +423,22 @@ def pressed_key(keys):
         death()
 
 
+def resize_win(event):
+    global screen, display_width, display_height, fullscreen
+    if event.type == pygame.VIDEORESIZE:
+        if not fullscreen:
+            screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+            display_width, display_height = event.w, event.h
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_F11:
+            fullscreen = not fullscreen
+            if fullscreen:
+                display_width, display_height = screen.get_width(), screen.get_height()
+                screen = pygame.display.set_mode((display_width, display_height), pygame.FULLSCREEN)
+            else:
+                screen = pygame.display.set_mode((display_width, display_height), pygame.RESIZABLE)
+
+
 def death():
     click = False
     display = pygame.Surface((display_width, display_height))
@@ -457,6 +474,7 @@ def death():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     click = True
+            resize_win(event)
         pygame.display.update()
 
 
@@ -506,6 +524,7 @@ def pause():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     click = True
+            resize_win(event)
         pygame.display.update()
 
 
@@ -555,6 +574,7 @@ def main_menu():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     click = True
+            resize_win(event)
 
         pygame.display.update()
 
@@ -575,7 +595,7 @@ def option():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     main_menu()
-
+            resize_win(event)
         pygame.display.update()
 
 
@@ -595,6 +615,7 @@ def game():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pause()
+            resize_win(event)
 
         man.move_bul()
 
