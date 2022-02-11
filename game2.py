@@ -27,7 +27,7 @@ plat[2].set_colorkey((255, 255, 255))
 animCount = 0
 bgCount = 0
 tile_rect = []
-bullets = []
+
 scroll = [0, 0]
 main_font = pygame.font.SysFont("comicsansms", 40)
 health_font = pygame.font.SysFont("comicsansms", 25)
@@ -68,6 +68,8 @@ class Player:
                    pygame.image.load("./sprites/biker/jumpLeft/jump3.png"),
                    pygame.image.load("./sprites/biker/jumpLeft/jump4.png")]
 
+    COOLDOWN = 10
+
     def __init__(self, x, y, width, height, speed):
         self.speed = speed
         self.player_rect = pygame.Rect(x, y, width, height)
@@ -79,6 +81,8 @@ class Player:
         self.hp = 300
         self.player_y_momentum = 0
         self.air_time = 0
+        self.cool_down_count = 0
+        self.bullets = []
 
     def get_x(self):
         return self.player_rect.x - self.player_rect.width / 1.5 - scroll[0]
@@ -109,29 +113,77 @@ class Player:
                 win.blit(self.playerStandLeft[animCount // 8], (self.get_x(), self.get_y()))
             animCount += 1
         print(animCount)
-        man.health(win)
+        self.health(win)
+
+    def cooldown(self):
+        if self.cool_down_count >= self.COOLDOWN:
+            self.cool_down_count = 0
+        elif self.cool_down_count > 0:
+            self.cool_down_count += 1
+
+    def shoot(self, face):
+        if self.cool_down_count == 0:
+            self.bullets.append(bullet(round(man.player_rect.x + man.player_rect.width / 2),
+                                       round(man.player_rect.y + man.player_rect.height / 2),
+                                       5, (255, 0, 0), face))
+            self.cool_down_count = 1
+
+    def draw_bul(self, win):
+        for bul in self.bullets:
+            bul.draw(win)
+
+    def move_bul(self):
+        self.cooldown()
+        for bul in self.bullets:
+            if bul.vel != 0:
+                if display_width > bul.get_x() > 0:
+                    bul.bul_rect, collision1 = move(bul.bul_rect, [bul.vel, 0], tile_rect)
+                    if collision1['top'] or collision1['bottom'] or collision1['right'] or collision1['left']:
+                        self.bullets.pop(self.bullets.index(bul))
+                    for en1 in en:
+                        bul.bul_rect, collision2 = move(bul.bul_rect, [bul.vel, 0], [en1.enemy_rect])
+                        if collision2['top'] or collision2['bottom'] or collision2['right'] or collision2['left']:
+                            en1.hp -= 10
+                            if en1.hp < 0.5:
+                                en.pop(en.index(en1))
+                            self.bullets.pop(self.bullets.index(bul))
+                else:
+                    self.bullets.pop(self.bullets.index(bul))
+            else:
+                if display_height > bul.bul_rect.y > 0:
+                    bul.bul_rect, collision1 = move(bul.bul_rect, [0, -10], tile_rect)
+                    if collision1['top'] or collision1['bottom'] or collision1['right'] or collision1['left']:
+                        self.bullets.pop(self.bullets.index(bul))
+                else:
+                    self.bullets.pop(self.bullets.index(bul))
+
+    def scroll_map(self):
+        if self.player_rect.x >= (display_width / 2 + self.player_rect.width / 2):
+            scroll[0] += int(self.player_rect.x - scroll[0] - display_width / 2 + self.player_rect.width / 2)
+
+        if self.player_rect.y < (display_height / 2 + self.player_rect.height / 2):
+            scroll[1] += int(self.player_rect.y - scroll[1] - display_height / 2 - self.player_rect.height / 2)
 
     def draw_collision_rect(self, win):
         pygame.draw.rect(win, "red",
                          pygame.Rect(self.get_x() + self.player_rect.width / 1.5,
                                      self.get_y() + self.player_rect.height / 3,
                                      self.player_rect.width, self.player_rect.height), 2)
-        draw_text(str(int(self.hp / 3)) + "/100", health_font, "white", win, 80, 42)
 
     def health(self, win):
         pygame.draw.rect(win, "red", pygame.Rect(29, 29, 302, 32))
         pygame.draw.rect(win, "green", pygame.Rect(30, 30, self.hp, 30))
+        draw_text(str(int(self.hp / 3)) + "/100", health_font, "white", win, 80, 42)
 
 
 class bullet:
     def __init__(self, x, y, radius, color, facing):
-        self.x = x
-        self.y = y
         self.radius = radius
         self.color = color
         self.facing = facing
         self.vel = 8 * facing
         self.bul_rect = pygame.Rect(x - radius, y - radius, 2 * radius, 2 * radius)
+        self.bullets = []
 
     def draw(self, win):
         pygame.draw.circle(win, self.color, (self.get_x() + self.radius, self.get_y() + self.radius), self.radius)
@@ -144,6 +196,8 @@ class bullet:
 
     def draw_collision_rect(self, win):
         pygame.draw.rect(win, "blue", pygame.Rect(self.get_x(), self.get_y(), self.radius * 2, self.radius * 2), 2)
+
+        # bul.draw_collision_rect(screen)
 
 
 class Enemy:
@@ -160,6 +214,7 @@ class Enemy:
         self.gravity = 10
         self.right = False
         self.left = False
+        self.hp = 100
 
     def get_x(self):
         return self.enemy_rect.x - scroll[0]
@@ -201,22 +256,24 @@ class Enemy:
         else:
             win.blit(self.enemy_stand,
                      (self.get_x() - self.enemy_rect.width / 2, self.get_y() + 5))
+        self.health(win)
+
+    def health(self, win):
+        pygame.draw.rect(win, "red", pygame.Rect(self.get_x(), self.get_y(), 50, 10))
+        pygame.draw.rect(win, "green", pygame.Rect(self.get_x(), self.get_y(), self.hp / 2, 10))
 
 
-en1 = Enemy(500, 100, 32, 64)
-enemy_rect1 = en1.enemy_rect
+en = []
 man = Player(display_width / 2 + 45, 100, 45, 60, 15)
 
 
 def initialisation():
-    global animCount, bgCount, tile_rect, bullets, scroll, man, en1, enemy_rect1
+    global animCount, bgCount, tile_rect, scroll, man, en
     animCount = 0
     bgCount = 0
     tile_rect = []
-    bullets = []
     scroll = [0, 0]
-    en1 = Enemy(500, 100, 32, 64)
-    enemy_rect1 = en1.enemy_rect
+    en = []
     man = Player(display_width / 2 + 45, 100, 45, 60, 15)
 
 
@@ -297,12 +354,10 @@ def draw_window():
 
     man.draw_player(screen)
     # en1.draw_enemy_rect(screen)
-    en1.draw_enemy(screen)
+    for en1 in en:
+        en1.draw_enemy(screen)
 
-    for bul in bullets:
-        bul.draw(screen)
-        # bul.draw_collision_rect(screen)
-
+    man.draw_bul(screen)
     # man.draw_collision_rect(screen)
     pygame.display.update()
 
@@ -335,10 +390,7 @@ def pressed_key(keys):
 
     if keys[pygame.K_RIGHT] or keys[pygame.K_LEFT] or keys[pygame.K_UP]:
         face = 1 if keys[pygame.K_RIGHT] else -1 if keys[pygame.K_LEFT] else 0
-        if len(bullets) < 100:
-            bullets.append(bullet(round(man.player_rect.x + man.player_rect.width / 2),
-                                  round(man.player_rect.y + man.player_rect.height / 2),
-                                  5, (255, 0, 0), face))
+        man.shoot(face)
 
     if keys[pygame.K_SPACE]:
         if man.air_time < 1:
@@ -362,9 +414,10 @@ def pressed_key(keys):
     else:
         man.air_time += 1
 
-    if man.player_rect.colliderect(enemy_rect1):
-        man.hp -= 10
-    if man.hp == 0:
+    for en1 in en:
+        if man.player_rect.colliderect(en1.enemy_rect):
+            man.hp -= 10
+    if man.hp < 0.5:
         draw_window()
         death()
 
@@ -458,6 +511,7 @@ def pause():
 
 def main_menu():
     click = False
+
     while True:
         clock.tick(30)
         pygame.time.delay(40)
@@ -465,6 +519,8 @@ def main_menu():
         screen.fill((0, 0, 0))
 
         initialisation()
+
+        en.append(Enemy(500, 100, 32, 64))
 
         draw_text('main menu', main_font, (255, 255, 255),
                   screen, display_width // 2, 30)
@@ -530,11 +586,7 @@ def game():
         clock.tick(60)
         pygame.time.delay(60)
 
-        if man.player_rect.x >= (display_width / 2 + man.player_rect.width / 2):
-            scroll[0] += int(man.player_rect.x - scroll[0] - display_width / 2 + man.player_rect.width / 2)
-
-        if man.player_rect.y < (display_height / 2 + man.player_rect.height / 2):
-            scroll[1] += int(man.player_rect.y - scroll[1] - display_height / 2 - man.player_rect.height / 2)
+        man.scroll_map()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -544,27 +596,13 @@ def game():
                 if event.key == pygame.K_ESCAPE:
                     pause()
 
-        for bul in bullets:
-            if bul.vel != 0:
-                if 1024 > bul.get_x() > 0:
-                    bul.bul_rect, collision = move(bul.bul_rect, [bul.vel, 0], tile_rect)
-                    if collision['top'] or collision['bottom'] or collision['right'] or collision['left']:
-                        bullets.pop(bullets.index(bul))
-                else:
-                    bullets.pop(bullets.index(bul))
-            else:
-                if display_height > bul.bul_rect.y > 0:
-                    bul.bul_rect, collision = move(bul.bul_rect, [0, -10], tile_rect)
-                    if collision['top'] or collision['bottom'] or collision['right'] or collision['left']:
-                        bullets.pop(bullets.index(bul))
-                else:
-                    bullets.pop(bullets.index(bul))
+        man.move_bul()
 
         keys = pygame.key.get_pressed()
 
         pressed_key(keys)
-
-        en1.move_enemy()
+        for en1 in en:
+            en1.move_enemy()
 
         draw_window()
 
